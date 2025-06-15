@@ -24,6 +24,12 @@
       text-shadow: 0 0 10px rgba(0, 245, 212, 0.5);
     }
 
+    .tagline {
+      font-size: 1.2rem;
+      color: #ccc;
+      margin-top: -10px;
+    }
+
     .container {
       background: #1e1e1e;
       padding: 40px;
@@ -34,10 +40,42 @@
       margin-top: 30px;
     }
 
+    .upload-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
     input[type="file"] {
-      display: block;
-      margin: 20px auto;
-      color: #ccc;
+      display: none;
+    }
+
+    .custom-file-upload {
+      background: linear-gradient(135deg, #ff8c00, #ffa500);
+      color: #000;
+      padding: 15px 40px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      margin-bottom: 10px;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .custom-file-upload:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(255, 165, 0, 0.4);
+    }
+
+    .file-name {
+      margin: 10px 0 20px;
+      color: #aaa;
+      font-size: 14px;
+      text-align: center;
     }
 
     button {
@@ -91,12 +129,6 @@
       text-align: center;
     }
 
-    .footer-info {
-      margin-top: 5px;
-      font-size: 13px;
-      color: #777;
-    }
-
     a {
       color: #00f5d4;
       text-decoration: none;
@@ -111,9 +143,17 @@
 <body>
 
   <h1>NotePilot</h1>
+  <p class="tagline">From long talks to short summaries — NotePilot handles it.</p>
+
   <div class="container">
-    <input type="file" id="fileInput" accept="audio/*">
-    <button onclick="uploadFile()">Upload & Summarize</button>
+    <div class="upload-section">
+      <label class="custom-file-upload">
+        <input type="file" id="fileInput" accept="audio/*" onchange="showFileName()">
+        Choose Audio File
+      </label>
+      <div id="fileNameDisplay" class="file-name">No file selected</div>
+      <button onclick="uploadFile()">Upload & Summarize</button>
+    </div>
     <div class="loader" id="loader"></div>
     <div class="summary" id="summary"></div>
   </div>
@@ -125,6 +165,16 @@
   </footer>
 
   <script>
+    function showFileName() {
+      const fileInput = document.getElementById('fileInput');
+      const fileNameDisplay = document.getElementById('fileNameDisplay');
+      if (fileInput.files.length > 0) {
+        fileNameDisplay.textContent = fileInput.files[0].name;
+      } else {
+        fileNameDisplay.textContent = "No file selected";
+      }
+    }
+
     async function uploadFile() {
       const fileInput = document.getElementById('fileInput');
       const file = fileInput.files[0];

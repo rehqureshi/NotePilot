@@ -12,12 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	deepgramAPIKey = "04b656c73828bb69731b0078f11cd9a7df20ebe5"
-	togetherAPIKey = "83f6b59a09f20da69086b3e73194d02796cf79bc6db9d3d2eed1ef03762f3241"
-)
-
-func transcribeWithDeepgram(filePath string) (string, error) {
+func transcribeWithDeepgram(filePath string, deepgramAPIKey string) (string, error) {
 	url := "https://api.deepgram.com/v1/listen"
 
 	file, err := os.Open(filePath)
@@ -26,13 +21,25 @@ func transcribeWithDeepgram(filePath string) (string, error) {
 	}
 	defer file.Close()
 
+	// Detect content type based on file extension
+	contentType := "audio/wav" // default
+
+	ext := filepath.Ext(filePath)
+	switch ext {
+	case ".mp3":
+		contentType = "audio/mpeg"
+	case ".wav":
+		contentType = "audio/wav"
+	case ".flac":
+		contentType = "audio/flac"
+	}
+
 	req, err := http.NewRequest("POST", url, file)
 	if err != nil {
 		return "", err
 	}
-
 	req.Header.Set("Authorization", "Token "+deepgramAPIKey)
-	req.Header.Set("Content-Type", "audio/wav") // Adjust this if you're uploading mp3 etc.
+	req.Header.Set("Content-Type", contentType)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -44,7 +51,7 @@ func transcribeWithDeepgram(filePath string) (string, error) {
 	bodyBytes, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("Deepgram API error: %s", string(bodyBytes))
+		return "", fmt.Errorf("deepgram api error: %s", string(bodyBytes))
 	}
 
 	var responseData map[string]interface{}
@@ -55,7 +62,7 @@ func transcribeWithDeepgram(filePath string) (string, error) {
 	return transcript, nil
 }
 
-func summarizeWithTogether(transcript string) (string, error) {
+func summarizeWithTogether(transcript string, togetherAPIKey string) (string, error) {
 	url := "https://api.together.xyz/v1/chat/completions"
 
 	payload := map[string]interface{}{
@@ -84,7 +91,7 @@ func summarizeWithTogether(transcript string) (string, error) {
 	bodyBytes, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("Together AI error: %s", string(bodyBytes))
+		return "", fmt.Errorf("together api error: %s", string(bodyBytes))
 	}
 
 	var responseData map[string]interface{}
@@ -98,6 +105,16 @@ func summarizeWithTogether(transcript string) (string, error) {
 
 func main() {
 	router := gin.Default()
+
+	// Read environment variables once at startup
+	deepgramAPIKey := os.Getenv("DEEPGRAM_API_KEY")
+	togetherAPIKey := os.Getenv("TOGETHER_API_KEY")
+
+	// Check if keys are missing (fail fast)
+	if deepgramAPIKey == "" || togetherAPIKey == "" {
+		fmt.Println("API keys are missing. Please set DEEPGRAM_API_KEY and TOGETHER_API_KEY environment variables.")
+		os.Exit(1)
+	}
 
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -118,7 +135,7 @@ func main() {
 		}
 
 		audioDir := "audio"
-		os.MkdirAll(audioDir, os.ModePerm) // ensures folder exists
+		os.MkdirAll(audioDir, os.ModePerm)
 
 		filename := filepath.Join(audioDir, "uploaded-"+file.Filename)
 		if err := c.SaveUploadedFile(file, filename); err != nil {
@@ -127,15 +144,13 @@ func main() {
 		}
 		fmt.Println("File saved:", filename)
 
-		// Transcribe using Deepgram
-		transcript, err := transcribeWithDeepgram(filename)
+		transcript, err := transcribeWithDeepgram(filename, deepgramAPIKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Summarize using Together AI
-		summary, err := summarizeWithTogether(transcript)
+		summary, err := summarizeWithTogether(transcript, togetherAPIKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
